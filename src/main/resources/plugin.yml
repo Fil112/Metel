@@ -1,0 +1,23 @@
+name: Metel
+version: 1.0.1
+main: me.malheen.metel.Metel
+api-version: 1.16
+description: Зимняя атмосфера с метелями и замерзанием + кастомные блоки
+author: me.malheen
+
+permissions:
+  metel.bypass:
+    description: Позволяет игнорировать эффекты плагина
+    default: op
+  metel.command:
+    description: Доступ к командам плагина
+    default: op
+  metel.winterize:
+    description: Доступ к командам преобразования мира
+    default: op
+
+commands:
+  metel:
+    description: Основная команда плагина Metel
+    usage: /<command> [reload|winterize|refresh|getblocks]
+    aliases: [метель]

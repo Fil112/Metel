@@ -1,0 +1,104 @@
+# Настройки видимости
+visibility:
+  max-view-distance: 7
+  hide-nametags: true
+  hide-coordinates: true
+  fog-distance: 2
+  always-fog: true
+
+# Настройки погоды
+weather:
+  always-snow: true
+  no-rain: true
+
+# Настройки замерзания
+freezing:
+  enabled: true
+  damage-interval-ticks: 100
+  damage-amount: 1.0
+  min-light-level: 10
+  armor-damage-interval: 12000
+  armor-damage-amount: 1
+
+  warm-blocks:
+    CAMPFIRE: 5
+    SOUL_CAMPFIRE: 5
+    LAVA: 15
+    FURNACE: 10
+    BLAST_FURNACE: 10
+    SMOKER: 10
+    TORCH: 3
+    WALL_TORCH: 3
+    SOUL_TORCH: 3
+    SOUL_WALL_TORCH: 3
+    LANTERN: 3
+    SOUL_LANTERN: 3
+    REDSTONE_TORCH: 3
+    REDSTONE_WALL_TORCH: 3
+    REDSTONE_LAMP: 6
+    MAGMA_BLOCK: 7
+    COPPER_BULB: 5
+    EXPOSED_COPPER_BULB: 5
+    WEATHERED_COPPER_BULB: 5
+    OXIDIZED_COPPER_BULB: 5
+    WAXED_COPPER_BULB: 5
+    WAXED_EXPOSED_COPPER_BULB: 5
+    WAXED_WEATHERED_COPPER_BULB: 5
+    WAXED_OXIDIZED_COPPER_BULB: 5
+    CANDLE: 2
+    WHITE_CANDLE: 2
+    ORANGE_CANDLE: 2
+    MAGENTA_CANDLE: 2
+    LIGHT_BLUE_CANDLE: 2
+    YELLOW_CANDLE: 2
+    LIME_CANDLE: 2
+    PINK_CANDLE: 2
+    GRAY_CANDLE: 2
+    LIGHT_GRAY_CANDLE: 2
+    CYAN_CANDLE: 2
+    PURPLE_CANDLE: 2
+    BLUE_CANDLE: 2
+    BROWN_CANDLE: 2
+    GREEN_CANDLE: 2
+    RED_CANDLE: 2
+    BLACK_CANDLE: 2
+
+# Настройки чата
+chat:
+  max-distance: 25.0
+
+# Настройки зимнего мира
+winter-world:
+  enabled: true
+  freeze-water: true
+
+# ... существующие настройки ...
+
+# Настройки кастомных блоков
+custom-blocks:
+  # Тепло-генератор (выглядит как обсидиан с лавой в центре)
+  heat-generator:
+    enabled: true
+    range: 100  # Радиус тепла (можно поставить хоть до границы мира)
+    melt-range: 30  # Радиус плавления льда и снега
+    material: "BLACKSTONE"  # Внешний вид блока
+    item-material: "POLISHED_BASALT"  # Материал предмета
+    lore-color: "RED"
+    custom-model-data: 10001
+
+  # Ледяной камень (камень с льдом внутри)
+  ice-stone:
+    enabled: true
+    range: 20  # Радиус действия (можно поставить хоть до границы мира)
+    freeze-range: 15  # Радиус заморозки воды
+    damage: 2.0  # Урон от холода каждые 2 секунды
+    slowness-amplifier: 1  # Уровень замедления (0-255)
+    material: "DEEPSLATE"  # Внешний вид блока
+    item-material: "POLISHED_DEEPSLATE"  # Материал предмета
+    lore-color: "AQUA"
+    custom-model-data: 10002
+
+  # Общие настройки
+  enable-effects: true
+  enable-particles: true
+  creative-only: true  # Только в творческом режиме
