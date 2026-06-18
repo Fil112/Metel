@@ -6,9 +6,16 @@ import org.bukkit.entity.Player;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
 public class VisibilityManager {
     private final Metel plugin;
     private Team hiddenTeam;
+
+    // Кэш для предотвращения бесконечной перезагрузки чанков
+    private final Map<UUID, Integer> activeViewDistances = new HashMap<>();
 
     public VisibilityManager(Metel plugin) {
         this.plugin = plugin;
@@ -36,8 +43,9 @@ public class VisibilityManager {
         Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             for (Player player : Bukkit.getOnlinePlayers()) {
                 updatePlayerVisibility(player);
-                applyFogEffects(player);
-                forceViewDistance(player);
+                // Убрали вызовы изменения прорисовки отсюда,
+                // теперь они будут безопасно обрабатываться через smartUpdateViewDistance
+                smartUpdateViewDistance(player);
             }
         }, 0L, 20L);
     }
@@ -50,9 +58,7 @@ public class VisibilityManager {
             for (Player other : Bukkit.getOnlinePlayers()) {
                 if (other.equals(player)) continue;
 
-                // Проверяем, что игроки в одном мире
                 if (!other.getWorld().equals(playerWorld)) {
-                    // Игроки в разных мирах - скрываем друг друга
                     if (player.canSee(other)) {
                         player.hidePlayer(plugin, other);
                     }
@@ -65,8 +71,8 @@ public class VisibilityManager {
                 try {
                     double distance = player.getLocation().distance(other.getLocation());
 
-                    if (distance <= maxDistance && player.hasLineOfSight(other)) {
-                        // Показываем игрока
+                    // Убрали тяжелый player.hasLineOfSight(other), оставили только дистанцию
+                    if (distance <= maxDistance) {
                         if (!player.canSee(other)) {
                             player.showPlayer(plugin, other);
                         }
@@ -74,7 +80,6 @@ public class VisibilityManager {
                             hiddenTeam.removeEntry(other.getName());
                         }
                     } else {
-                        // Скрываем игрока
                         if (player.canSee(other)) {
                             player.hidePlayer(plugin, other);
                         }
@@ -83,8 +88,6 @@ public class VisibilityManager {
                         }
                     }
                 } catch (IllegalArgumentException e) {
-                    // Игнорируем ошибки измерения расстояния
-                    // Просто скрываем игрока при ошибке
                     if (player.canSee(other)) {
                         player.hidePlayer(plugin, other);
                     }
@@ -93,46 +96,54 @@ public class VisibilityManager {
                     }
                 }
             }
-
         } catch (Exception e) {
-            // Игнорируем все ошибки без вывода в консоль
+            // Игнорируем
         }
     }
 
-    public void applyFogEffects(Player player) {
+    /**
+     * Умный метод обновления прорисовки.
+     * Защищает сервер от бесконечной отправки пакетов чанков.
+     */
+    private void smartUpdateViewDistance(Player player) {
         World world = player.getWorld();
+        int targetDistance;
 
-        if (world.getEnvironment() == World.Environment.NETHER ||
-                world.getEnvironment() == World.Environment.THE_END) {
-            restoreNormalView(player);
-            return;
+        if (world.getEnvironment() == World.Environment.NORMAL && plugin.getPluginConfig().shouldAlwaysFog()) {
+            targetDistance = plugin.getPluginConfig().getFogDistance();
+        } else {
+            targetDistance = plugin.getPluginConfig().getMaxViewDistance();
         }
 
-        if (plugin.getPluginConfig().shouldAlwaysFog()) {
+        // Защита от выхода за лимиты Bukkit (от 2 до 32 чанков)
+        targetDistance = Math.max(2, Math.min(targetDistance, 32));
+
+        // Отправляем запрос ядру ТОЛЬКО если дальность изменилась
+        if (activeViewDistances.getOrDefault(player.getUniqueId(), -1) != targetDistance) {
             try {
-                int fogDistance = plugin.getPluginConfig().getFogDistance();
-                player.setViewDistance(Math.min(fogDistance, 32));
+                player.setViewDistance(targetDistance);
+                activeViewDistances.put(player.getUniqueId(), targetDistance);
             } catch (Exception e) {
-                // Игнорируем ошибку
+                // Игнорируем
             }
         }
     }
 
+    // Эти методы оставлены для совместимости с Metel.java,
+    // но теперь они безопасно перенаправляют логику в умный метод.
+    public void applyFogEffects(Player player) {
+        smartUpdateViewDistance(player);
+    }
+
     public void forceViewDistance(Player player) {
-        try {
-            player.setViewDistance(7);
-        } catch (Exception e) {
-            // Игнорируем ошибку
-        }
+        smartUpdateViewDistance(player);
     }
 
     public void hideNameTags(Player player) {
         if (plugin.getPluginConfig().shouldHideNametags() && hiddenTeam != null) {
             try {
                 hiddenTeam.addEntry(player.getName());
-            } catch (Exception e) {
-                // Игнорируем ошибку
-            }
+            } catch (Exception e) {}
         }
     }
 
@@ -140,23 +151,20 @@ public class VisibilityManager {
         if (hiddenTeam != null) {
             try {
                 hiddenTeam.removeEntry(player.getName());
-            } catch (Exception e) {
-                // Игнорируем ошибку
-            }
+            } catch (Exception e) {}
         }
     }
 
     public void applyPlayerSettings(Player player) {
-        forceViewDistance(player);
-        applyFogEffects(player);
+        smartUpdateViewDistance(player);
         hideNameTags(player);
     }
 
     public void restoreNormalView(Player player) {
         try {
-            player.setViewDistance(10);
-        } catch (Exception e) {
-            // Игнорируем ошибку
-        }
+            int defaultDistance = 10;
+            player.setViewDistance(defaultDistance);
+            activeViewDistances.remove(player.getUniqueId());
+        } catch (Exception e) {}
     }
 }

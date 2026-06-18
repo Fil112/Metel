@@ -40,37 +40,44 @@ public class FreezeManager {
             return;
         }
 
-        if (!isPlayerOutdoors(player)) {
+        if (!isPlayerOutdoors(player, config)) {
             return;
         }
 
-        if (isPlayerWarm(player, config)) {
-            if (player.hasPotionEffect(PotionEffectType.SLOWNESS)) {
-                player.removePotionEffect(PotionEffectType.SLOWNESS);
+        // Проверяем, согрет ли игрок блоками или полным комплектом кожаной брони
+        boolean warmByBlocks = isPlayerWarm(player, config);
+        boolean warmByArmor = hasFullProtectiveArmor(player);
+
+        if (warmByBlocks || warmByArmor) {
+            if (player.hasPotionEffect(PotionEffectType.SLOW)) {
+                player.removePotionEffect(PotionEffectType.SLOW);
             }
             lastDamageTime.remove(player.getUniqueId());
+
+            // Если игрок греется только за счет брони (рядом нет теплых блоков), она изнашивается
+            if (!warmByBlocks && warmByArmor) {
+                damageLeatherArmor(player, config);
+            }
             return;
         }
 
-        player.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, 100, 2, false, false, true));
+        // Если защиты нет — накладываем замедление и наносим урон со временем
+        player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 100, 2, false, false, true));
 
         long currentTime = System.currentTimeMillis();
         long lastTime = lastDamageTime.getOrDefault(player.getUniqueId(), 0L);
 
         if (currentTime - lastTime >= config.getDamageInterval() * 50) {
             player.damage(config.getDamageAmount());
-            player.sendMessage("§bВы замерзаете! Найдите источник тепла!");
+            player.sendMessage("§bВы замерзаете! Найдите источник тепла или наденьте кожаную одежду!");
             lastDamageTime.put(player.getUniqueId(), currentTime);
         }
     }
 
-    private boolean isPlayerOutdoors(Player player) {
-        // Получаем уровень "небесного" света.
-        // На открытом поле = 15. Под одним блоком = ~14.
-        // В полностью закрытом помещении или пещере = 0.
-        // Если свет > 8, значит игрок явно недостаточно укрыт со всех сторон.
+    private boolean isPlayerOutdoors(Player player, Config config) {
         Block block = player.getLocation().getBlock();
-        return block.getLightFromSky() > 8;
+        // Используем динамическую настройку minLightLevel вместо хардкода
+        return block.getLightFromSky() > config.getMinLightLevel();
     }
 
     private boolean isPlayerWarm(Player player, Config config) {
@@ -98,9 +105,20 @@ public class FreezeManager {
         return false;
     }
 
-    public void damageLeatherArmor(Player player) {
-        Config config = plugin.getPluginConfig();
+    // Проверка на то, одет ли на игрока полный сет кожаной брони
+    private boolean hasFullProtectiveArmor(Player player) {
+        PlayerInventory inventory = player.getInventory();
+        return isProtectivePiece(inventory.getHelmet()) &&
+                isProtectivePiece(inventory.getChestplate()) &&
+                isProtectivePiece(inventory.getLeggings()) &&
+                isProtectivePiece(inventory.getBoots());
+    }
 
+    private boolean isProtectivePiece(ItemStack item) {
+        return item != null && protectiveArmor.contains(item.getType());
+    }
+
+    public void damageLeatherArmor(Player player, Config config) {
         long currentTime = System.currentTimeMillis();
         long lastTime = lastArmorDamageTime.getOrDefault(player.getUniqueId(), 0L);
 
@@ -109,16 +127,17 @@ public class FreezeManager {
         }
 
         PlayerInventory inventory = player.getInventory();
+        int damageAmount = config.getArmorDamageAmount();
 
-        damageArmorPiece(inventory.getHelmet());
-        damageArmorPiece(inventory.getChestplate());
-        damageArmorPiece(inventory.getLeggings());
-        damageArmorPiece(inventory.getBoots());
+        damageArmorPiece(inventory.getHelmet(), damageAmount);
+        damageArmorPiece(inventory.getChestplate(), damageAmount);
+        damageArmorPiece(inventory.getLeggings(), damageAmount);
+        damageArmorPiece(inventory.getBoots(), damageAmount);
 
         lastArmorDamageTime.put(player.getUniqueId(), currentTime);
     }
 
-    private void damageArmorPiece(ItemStack armor) {
+    private void damageArmorPiece(ItemStack armor, int damageAmount) {
         if (armor == null || !protectiveArmor.contains(armor.getType())) {
             return;
         }
@@ -130,7 +149,8 @@ public class FreezeManager {
             int maxDurability = armor.getType().getMaxDurability();
 
             if (currentDamage < maxDurability) {
-                damageable.setDamage(currentDamage + new Random().nextInt(2) + 1);
+                // Наносим урон из конфига (с ограничением, чтобы не уйти в минус по прочности)
+                damageable.setDamage(Math.min(maxDurability, currentDamage + damageAmount));
                 armor.setItemMeta((ItemMeta) damageable);
             }
         }
